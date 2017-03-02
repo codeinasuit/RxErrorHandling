@@ -7,19 +7,41 @@
 //
 
 import UIKit
+import RxSwift
+import RxSwiftExt
+import RxCocoa
+
+struct SampleError: Swift.Error {}
 
 class ViewController: UIViewController {
+    let disposeBag = DisposeBag()
+    @IBOutlet weak var successessCountLabel: UILabel!
+    @IBOutlet weak var failuresCountLabel: UILabel!
+    @IBOutlet weak var successButton: UIButton!
+    @IBOutlet weak var failureButton: UIButton!
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
+        
+        let successessCount = Observable
+            .of(successButton.rx.tap.map { true }, failureButton.rx.tap.map { false })
+            .merge()
+            .flatMap { [unowned self] performWithSuccess in
+                return self.performAction(shouldEndWithSuccess: performWithSuccess)
+            }.scan(0) { accumulator, _ in
+                return accumulator + 1
+            }.map { "\($0)" }
+        
+        successessCount.bindTo(successessCountLabel.rx.text)
+            .disposed(by: disposeBag)
     }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
+    
+    private func performAction(shouldEndWithSuccess: Bool) -> Observable<Void> {
+        if shouldEndWithSuccess {
+            return .just(())
+        } else {
+            return .error(SampleError())
+        }
     }
-
-
 }
 
