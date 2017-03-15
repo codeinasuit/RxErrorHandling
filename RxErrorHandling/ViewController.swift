@@ -22,21 +22,49 @@ class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        let successessCount = Observable
+        //failWillCloseTheStream()
+        usingMaterialize()
+    }
+
+    private func failWillCloseTheStream() {
+        let successesCount = Observable
             .of(successButton.rx.tap.map { true }, failureButton.rx.tap.map { false })
             .merge()
             .flatMap { [unowned self] performWithSuccess in
-                return self.performAction(shouldEndWithSuccess: performWithSuccess)
+                return self.performAPICall(shouldEndWithSuccess: performWithSuccess)
             }.scan(0) { accumulator, _ in
                 return accumulator + 1
             }.map { "\($0)" }
-        
-        successessCount.bindTo(successessCountLabel.rx.text)
+
+        successesCount.bindTo(successessCountLabel.rx.text)
             .disposed(by: disposeBag)
     }
-    
-    private func performAction(shouldEndWithSuccess: Bool) -> Observable<Void> {
+
+    private func usingMaterialize() {
+        let result = Observable
+            .of(successButton.rx.tap.map { true }, failureButton.rx.tap.map { false })
+            .merge()
+            .flatMap { [unowned self] performWithSuccess in
+                return self.performAPICall(shouldEndWithSuccess: performWithSuccess)
+                    .materialize()
+            }.share()
+
+        result.elements()
+            .scan(0) { accumulator, _ in
+                return accumulator + 1
+            }.map { "\($0)" }
+            .bindTo(successessCountLabel.rx.text)
+            .disposed(by: disposeBag)
+
+        result.errors()
+            .scan(0) { accumulator, _ in
+                return accumulator + 1
+            }.map { "\($0)" }
+            .bindTo(failuresCountLabel.rx.text)
+            .disposed(by: disposeBag)
+    }
+
+    private func performAPICall(shouldEndWithSuccess: Bool) -> Observable<Void> {
         if shouldEndWithSuccess {
             return .just(())
         } else {
